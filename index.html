@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>漢字部件猜字 v11（支援雙空格題）</title>
+<style>
+:root{
+  --pink:#FFD1DC; --mint:#B5EAD7; --lav:#C7CEEA; --cream:#FFFACD;
+  --blue:#A0E7E5; --peach:#FFDAC1; --yellow:#FBE8A6; --purple:#E2CFCF;
+  --ink:#33334d; --teal:#2a6f6f; --red:#e06c75;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;width:100%;min-height:100%;background:var(--cream);color:var(--ink);
+  font-family:"BiauKai","DFKai-SB","標楷體","Kaiti TC","STKaiti","Kaiti",serif;}
+header{width:100%;padding:10px 16px;background:linear-gradient(90deg,var(--pink),var(--lav),var(--blue),var(--mint));
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;border-bottom:4px solid #fff;}
+header h1{margin:0;font-size:26px;letter-spacing:1px}
+header .sub{font-size:15px;background:#fff;border-radius:20px;padding:4px 12px}
+main{width:100%;padding:12px;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;flex-wrap:wrap;gap:10px;width:100%}
+.card{flex:1 1 200px;background:#fff;border-radius:16px;padding:12px 14px;box-shadow:0 2px 8px rgba(0,0,0,.08);border:3px solid #fff;min-width:0}
+.card h2{margin:0 0 8px;font-size:19px;background:var(--mint);display:inline-block;padding:2px 12px;border-radius:12px}
+label{font-size:16px;margin-right:4px}
+select,input[type=number],input[type=text]{font-size:17px;padding:6px 8px;border-radius:10px;border:2px solid var(--lav);font-family:inherit;background:#fff;max-width:100%}
+button{font-size:17px;font-family:inherit;border:none;border-radius:12px;padding:9px 14px;cursor:pointer;font-weight:bold}
+button:active{transform:scale(.97)}
+.b-out{background:var(--blue)} .b-ask{background:var(--yellow)} .b-ans{background:var(--pink)}
+.b-hint{background:var(--lav)} .b-del{background:var(--peach)} .b-time{background:var(--mint)}
+.b-ghost{background:#fff;border:2px solid var(--lav)}
+.b-start{background:#90BE6D;color:#fff;font-size:24px;padding:14px 40px}
+.dropzone{border:3px dashed var(--lav);border-radius:12px;padding:12px;text-align:center;font-family:sans-serif;font-size:16px;cursor:pointer;margin-top:8px;background:#fafaff}
+.dropzone.over{background:var(--mint);border-color:var(--teal)}
+.dropzone u{font-weight:bold}
+#qbox{width:100%;background:#fff;border-radius:16px;padding:14px 18px;border:4px solid var(--pink);position:relative}
+#qtype{display:inline-block;background:var(--purple);border-radius:10px;padding:2px 12px;font-size:16px;margin-bottom:6px}
+#qsentence{font-size:42px;line-height:1.5;font-weight:bold;letter-spacing:2px;margin:6px 0}
+#qsentence .blank{display:inline-block;min-width:64px;border-bottom:6px solid var(--red);color:var(--red);text-align:center}
+#qwords{font-size:28px;background:var(--cream);border-radius:10px;padding:6px 12px;display:inline-block;letter-spacing:2px}
+#zhuyin{font-size:22px;background:var(--blue);border-radius:10px;padding:4px 12px;display:inline-block;margin-left:8px;font-family:sans-serif}
+#poolWrap{width:100%;background:#fff;border-radius:16px;padding:14px;border:4px solid var(--blue)}
+#poolHead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px}
+#pool{display:grid;gap:12px;width:100%;grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
+.tile{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:bold;
+  border-radius:18px;cursor:pointer;border:4px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.12);
+  font-family:"BiauKai","DFKai-SB","標楷體","Kaiti TC","STKaiti",serif;user-select:none;transition:transform .15s}
+.tile:hover{transform:scale(1.04)}
+.tile.single{background:var(--cream);color:var(--teal)}
+.tile.circled{outline:7px solid #ff6b81;outline-offset:-2px;position:relative}
+.tile.circled::after{content:"老師圈選";position:absolute;top:4px;font-size:13px;background:#ff6b81;color:#fff;border-radius:8px;padding:1px 6px;font-family:sans-serif}
+.tile.auto-circled{outline:7px solid #7b61ff;outline-offset:-2px;position:relative}
+.tile.auto-circled::after{content:"提示";position:absolute;top:4px;font-size:13px;background:#7b61ff;color:#fff;border-radius:8px;padding:1px 6px;font-family:sans-serif}
+.tile.removed{display:none}
+#msg{min-height:28px;font-size:18px;font-weight:bold;color:#b03a48;font-family:sans-serif}
+#promptMsg{font-family:sans-serif;font-size:14px;color:#2a6f6f;min-height:20px;margin-top:6px}
+#timer{font-size:24px;font-weight:bold;background:var(--yellow);border-radius:12px;padding:4px 14px;font-family:sans-serif}
+.blurred{filter:blur(14px);pointer-events:none;user-select:none}
+.overlay{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.overlay.show{display:flex}
+#blurOverlay{background:rgba(255,255,255,.35)}
+#blurOverlay .big{font-size:52px;font-weight:bold;background:#fff;padding:10px 26px;border-radius:18px;border:4px solid var(--lav)}
+#pauseOverlay{background:rgba(51,51,77,.45);z-index:45}
+#pauseOverlay .big{font-size:52px;font-weight:bold;background:#fff;padding:10px 26px;border-radius:18px;border:4px solid var(--yellow)}
+#ansOverlay{background:rgba(51,51,77,.55);z-index:50;padding:16px}
+#ansOverlay.show{display:flex}
+#ansCard{background:#fff;border-radius:20px;padding:20px 26px;max-width:640px;width:100%;text-align:center;border:6px solid var(--pink)}
+#ansCard .hanzi{font-size:110px;font-weight:bold;line-height:1.1}
+#ansCard .row2{font-size:22px;margin-top:8px}
+#gameBar{width:100%;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:#fff;border-radius:16px;padding:10px 14px;border:3px solid var(--lav)}
+#lessonBadge{font-size:20px;font-weight:bold;background:var(--mint);border-radius:12px;padding:4px 14px}
+.hidden{display:none !important}
+footer{font-size:14px;font-family:sans-serif;color:#666;padding:4px 16px 20px;width:100%}
+@media (max-width:700px){ #qsentence{font-size:32px} .tile{font-size:52px} }
+</style>
+</head>
+<body>
+<header>
+  <h1>漢字部件猜字・v11</h1>
+  <span class="sub">滿版・馬卡龍・單檔離線可玩｜學生寫手寫板作答</span>
+</header>
+
+<!-- ============ 設定頁 ============ -->
+<main id="setupView">
+  <div class="row">
+    <div class="card" style="flex:2 1 420px">
+      <h2>📚 教材與題庫</h2><br>
+      <label>版本 <select id="selVer"><option>康軒</option><option>南一</option><option>翰林</option></select></label>
+      <label>年級 <select id="selGrade"><option>一年級</option><option>二年級</option><option>三年級</option><option>四年級</option><option>五年級</option><option selected>六年級</option></select></label>
+      <label>學期 <select id="selTerm"><option selected>上學期</option><option>下學期</option></select></label>
+      <div id="dropTpl" class="dropzone">📥 題庫txt拖到這裡放開，或 <u>點這裡選檔</u><input type="file" id="fileTpl" accept=".txt" style="display:none"></div>
+      <div id="dropDb" class="dropzone">📥 hanzi_db.json拖到這裡放開，或 <u>點這裡選檔</u>（離線備用，預設已自動載入GitHub版）<input type="file" id="fileDb" accept=".json" style="display:none"></div>
+      <div style="margin-top:8px"><button class="b-ghost" onclick="downloadTemplate()">⬇ 下載題庫範本v10</button></div>
+      <div id="dbInfo" style="font-family:sans-serif;font-size:15px;margin-top:8px;color:#555">部件庫載入中…（連線 GitHub 自動載入，免手動上傳）</div>
+      <div id="bankInfo" style="font-family:sans-serif;font-size:15px;margin-top:4px;color:#555">題庫：內建demo（媽／爸／清／做）｜上傳或拖入後顯示題數</div>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="b-ghost" onclick="checkBank()">🔍 檢查題庫（留空位置／欄數／注音）</button>
+      </div>
+      <div id="bankCheck" style="font-family:sans-serif;font-size:14px;margin-top:6px;color:#333;line-height:1.7"></div>
+    </div>
+    <div class="card" style="flex:1.4 1 320px">
+      <h2>⚙️ 部件池設定</h2><br>
+      <label>部件數 <input type="number" id="selCount" value="6" min="3" max="20" style="width:80px"> 個（3～20，預設6）</label>
+      <div style="margin-top:6px">
+        <label>配色 <select id="selColor"><option value="multi" selected>多色</option><option value="single">單色</option></select></label>
+        <label>字型 標楷體優先（無則楷體）</label>
+      </div>
+      <div style="margin-top:6px">
+        <label><input type="radio" name="move" value="fixed" checked> 固定不動</label>
+        <label><input type="radio" name="move" value="shuffle"> 每 <input type="number" id="moveSec" value="2" min="1" max="10" style="width:60px"> 秒挪動位置</label>
+      </div>
+    </div>
+    <div class="card" style="flex:1.2 1 280px">
+      <h2>⏱ 時間與提示設定</h2>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-family:sans-serif">
+        <label><input type="checkbox" id="timeOn" checked> 啟用時限</label>
+        <label><input type="number" id="timeSec" value="30" min="5" max="300" style="width:70px"> 秒</label>
+      </div>
+      <div style="margin-top:8px;font-family:sans-serif;font-size:15px">
+        🔊 注音提示改為遊戲中每題即時點選（學生卡住老師才按）：題庫第8欄須查辭典填寫，必填；沒附就不顯示，工具絕不亂猜。
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="card" style="flex:1 1 100%">
+      <h2>🤖 請 AI 生題庫</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="b-hint" onclick="copyPrompt()">📋 一鍵複製AI提示詞</button>
+        <button class="b-ghost" onclick="downloadPrompt()">⬇ 下載AI提示詞</button>
+      </div>
+      <div id="promptMsg"></div>
+      <div style="font-family:sans-serif;font-size:15px;line-height:1.7;margin-top:6px">
+      複製後貼給任何AI並附上該課教材（生字表＋字音字形＋語詞例句，一次一課），AI會上教育部辭典查好注音再給txt，拿回來拖入上方框框即玩。
+      </div>
+    </div>
+  </div>
+  <div class="row" style="justify-content:center">
+    <button class="b-start" onclick="startGame()">▶ 開始遊戲</button>
+  </div>
+  <div class="card" style="flex:1 1 100%">
+    <h2>💡 玩法（給老師）</h2>
+    <div style="font-family:sans-serif;font-size:15px;line-height:1.7">
+    1. 遊戲頁不會出現答案字：題型、語詞提示、部件池說明中的目標字與形近字一律以○遮住。<br>
+    2. 語詞提示顯示目標字的三個語詞（如○軸／○心／輪○），形近字語詞只在公布答案後給老師講解用，遊戲中不出現、不干擾。<br>
+    3. 學生看句子留空＋部件池猜字，寫在手寫板上；線索只放在部件池裡。<br>
+    4. 提示：老師圈對／工具圈對／老師刪錯／工具刪錯；正確部件剩1個即停止並通知。注音平時隱藏，學生卡住老師按「🔊 注音提示」即時顯示，再按隱藏。<br>
+    5. ⏸暫停會同時霧化畫面、暫停計時與部件挪動，繼續後接著跑；時間到自動霧化，可再秀出；隨時可公布答案。<br>
+    6. 上傳題庫後先按「🔍 檢查題庫」：留空挖錯字、欄數不對、缺注音都會列出來；遊戲中也會自動跳過有問題的題目。<br>
+    7. 題目不重複輪播：每題只出現一次，頂端顯示第幾題／共幾題；←上一題可回顧，全部做完可再玩一次。<br>
+    8. 「🔀 一鍵打亂」只重排剩下的部件：刪掉的不回來、圈的不消失。<br>
+    9. 雙空格題：句中有兩個生字就兩個都挖空，學生兩個都要寫；公布答案一次還原。
+    </div>
+  </div>
+</main>
+
+<!-- ============ 遊戲頁 ============ -->
+<main id="gameView" class="hidden">
+  <div id="gameBar">
+    <span id="lessonBadge">第一課</span>
+    <span id="progress" style="font-size:20px;font-weight:bold;background:var(--peach);border-radius:12px;padding:4px 14px">第1題／共1題</span>
+    <span id="timer">--</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="b-time" id="btnPause" onclick="pauseGame()">⏸ 暫停</button>
+      <button class="b-ghost" id="btnZy" onclick="toggleZhuyin()">🔊 注音提示</button>
+      <button class="b-ghost" onclick="setBlur(true)">🌫 霧化</button>
+      <button class="b-ghost" onclick="setBlur(false)">👀 再秀出畫面</button>
+      <button class="b-ans" onclick="showAnswer()">📢 公布答案</button>
+      <button class="b-out" onclick="prevQuestion()">← 上一題</button>
+      <button class="b-out" onclick="nextQuestion()">下一題 ➜</button>
+      <button class="b-ghost" onclick="backToSetup()">⚙ 回設定</button>
+    </div>
+  </div>
+
+  <div id="qbox">
+    <span id="qtype">部件猜題</span>
+    <div id="qsentence">載入中…</div>
+    <div><span id="qwords"></span><span id="zhuyin" class="hidden"></span></div>
+  </div>
+
+  <div id="poolWrap">
+    <div id="poolHead">
+      <div style="font-size:20px;font-weight:bold">🧩 部件池 <span id="poolInfo" style="font-size:15px;font-family:sans-serif;color:#666"></span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="b-hint" onclick="armTeacherCircle()">⭕ 老師圈對的</button>
+        <button class="b-hint" onclick="autoCircle()">✨ 工具隨機圈對</button>
+        <button class="b-del" onclick="armTeacherDelete()">❌ 老師刪錯的</button>
+        <button class="b-del" onclick="autoDelete()">🧹 工具隨機刪錯</button>
+        <button class="b-time" onclick="shufflePool()">🔀 一鍵打亂（只排剩下的）</button>
+      </div>
+    </div>
+    <div id="msg"></div>
+    <div id="pool"></div>
+  </div>
+</main>
+
+<div id="blurOverlay" class="overlay">
+  <div class="big">🌫 時間到・畫面已霧化</div>
+  <button class="b-time" style="font-size:22px" onclick="setBlur(false)">👀 再秀出畫面</button>
+  <button class="b-ans" style="font-size:22px" onclick="showAnswer()">📢 公布答案</button>
+</div>
+
+<div id="pauseOverlay" class="overlay">
+  <div class="big">⏸ 已暫停・畫面已霧化・計時已停</div>
+  <button class="b-time" style="font-size:22px" onclick="resumeGame()">▶ 繼續作答</button>
+</div>
+
+<div id="doneOverlay" class="overlay">
+  <div class="big">🎉 全部做完！</div>
+  <div id="doneInfo" style="font-size:22px;background:#fff;border-radius:14px;padding:8px 20px"></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+    <button class="b-start" style="font-size:20px" onclick="replayGame()">🔁 再玩一次（重新洗牌）</button>
+    <button class="b-ghost" style="font-size:20px;background:#fff" onclick="backToSetup()">⚙ 回設定</button>
+  </div>
+</div>
+
+<div id="ansOverlay" class="overlay" onclick="if(event.target===this)this.classList.remove('show')">
+  <div id="ansCard">
+    <div style="font-size:20px">📢 答案</div>
+    <div class="hanzi" id="ansHanzi"></div>
+    <div class="row2" id="ansDetail"></div>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button class="b-ask" onclick="document.getElementById('ansOverlay').classList.remove('show')">繼續作答</button>
+      <button class="b-out" onclick="document.getElementById('ansOverlay').classList.remove('show');nextQuestion()">下一題 ➜</button>
+      <button class="b-ghost" onclick="backToSetup()">⚙ 回設定</button>
+    </div>
+  </div>
+</div>
+
+<footer>v11・單一HTML・支援雙空格題・v1～v10保留</footer>
+
+<script>
+// ---- 內建精簡部件庫（開機後自動用線上完整版覆蓋；離線才用這個）----
+let HANZI_DB = {
+ "媽":["女","馬"],"嗎":["口","馬"],"好":["女","子"],
+ "爸":["父","巴"],"吧":["口","巴"],"把":["扌","巴"],
+ "清":["氵","青"],"情":["忄","青"],"晴":["日","青"],
+ "做":["亻","故"],"作":["亻","乍"],"昨":["日","乍"],
+ "國":["囗","或"],"園":["囗","袁"],"圓":["囗","員"]
+};
+let DB_READY=false;
+// tWords=目標語詞陣列（最多3個，第一個須與句子用詞一致；遊戲全顯示）
+// sWords=形近字語詞（只在答案卡顯示）
+let DEMO_Q = [
+ {target:"媽",sim:["嗎","好"],type:"生字語詞",tWords:["媽媽","媽祖","奶媽"],sWords:"幹嗎／好人",sentence:"＿＿很溫柔，每天送我上學。",zhuyin:""},
+ {target:"爸",sim:["吧","把"],type:"含生字句子",tWords:["爸爸","乾爸","阿爸"],sWords:"酒吧／把手",sentence:"＿＿在門口等我放學。",zhuyin:""},
+ {target:"清",sim:["情","晴"],type:"形近字語詞",tWords:["清澈","清潔","清晨"],sWords:"心情／晴天",sentence:"湖水很＿＿，可以看到魚。",zhuyin:""},
+ {target:"做",sim:["作","昨"],type:"生字語詞",tWords:["做事","做法","做人"],sWords:"作品／昨天",sentence:"他＿＿事認真，＿＿人誠懇。",zhuyin:""}
+];
+const FILL=["一","人","大","小","中","木","水","火","日","月","子","女","氵","扌","忄","宀","囗","青","馬","巴","乍","袁","故","員","或","口","山","田","白","目","耳","手","心","言","糸","雨"];
+const MACARON=["#FFD1DC","#B5EAD7","#C7CEEA","#FFFACD","#A0E7E5","#FFDAC1","#FBE8A6","#E2CFCF","#D4F0F0","#CCD5AE","#E9C46A","#F4A261","#90BE6D","#F9844A","#B5179E"];
+let cur=null, hideChars=[], timerId=null, moveId=null, armMode=null, timeLeft=0, paused=false;
+let playOrder=[], playIdx=-1;
+
+// ---- AI 提示詞（與 AI生成題庫-提示詞-v9.txt 相同）----
+const AI_PROMPT = `請幫我生成「漢字部件猜字」課堂遊戲用的題庫文本，規則如下：
+
+一、輸出格式（嚴格遵守）
+1. 純文字 .txt，UTF-8 編碼，8 個欄位之間用 Tab 分隔，一列一題。
+2. 第一列必須是標題列：
+課別	生字	形近字(用|分隔)	生字語詞(3個，用|分隔)	形近字語詞	含生字句子(用＿＿留空)	含形近字句子(用＿＿留空)	生字注音(必填)
+3. 留空符號統一用＿＿（兩個全形底線），每句只出現一次。
+4. 形近字之間用半形 | 分隔，不加空格。
+
+二、欄位定義
+1. 課別：第幾課＋課名，如「第一課跑道」。
+2. 生字：只填一個字，就是學生要猜的指定漢字。
+3. 形近字：2 個以上，與生字形近的字。
+4. 生字語詞：含生字的日常語詞，用 | 分隔寫 3 個（第 6 欄句子用的放第一個），遊戲中三個都會顯示。
+5. 形近字語詞：形近字組成的語詞（只在公布答案後給老師講解用，遊戲畫面絕不顯示，以免干擾學生判斷）。
+6. 含生字句子：包含生字語詞的句子，生字位置挖空成＿＿。＿＿必須挖在生字（第 2 欄）的位置，不可挖在同句其他字上；＿＿以外不可再出現生字完整字形（同課其他生字如「耕」可完整保留，這樣學生才知道要寫哪一個字）。如果句中出現兩次生字，兩個位置都要挖空（雙空格題，如「他＿＿事認真，＿＿人誠懇」）。
+7. 含形近字句子：包含形近字語詞的句子，形近字位置挖空成＿＿（備用，老師可選用），只能有一個＿＿，同樣只能挖在形近字的位置。
+8. 生字注音（必填）：生字在該語詞中的正確注音，如ㄗㄨㄢˋ（遊戲中平時隱藏，老師按「注音提示」才即時顯示）。
+
+三、生字語詞規則（第 4 欄，必須生活化、可查證）
+1. 每題共寫 3 個含生字的不同語詞（第 6 欄句子用的放第一個，另加兩個）。
+2. 語詞要生活化、日常會用到，不冷門不艱澀；2～6 個字，以 2～3 個字為優先。
+3. 每一個語詞都須能在教育部《國語辭典簡編本》、教育部《國語小字典》查到；查不到足量就寫查到的幾個（至少 1 個），絕不捏造不存在的詞。
+4. 第 6 欄句子以第 4 欄第一個語詞為主，句中避免再出現第二個含生字的語詞，以免混淆。
+
+四、不干擾原則（一定要做到）
+1. 語詞提示只顯示第 4 欄（目標語詞，目標字以○遮住，如○事）。
+2. 第 5 欄形近字語詞、目標字、形近字的完整字形，絕不可出現在題目、語詞提示、部件池說明等任何遊戲畫面。
+3. 給學生的線索只有三樣：留空句子、目標語詞提示、部件池。
+
+五、注音查證（最重要，不可省略）
+1. 每一題的第 8 欄都要填，不可以留空，也不可以憑感覺編造。
+2. 請上教育部《國語辭典簡編本》、教育部《國語小字典》或同等官方辭典網站，查該生字在該語詞中的實際讀音後再填寫（注意破音字在不同語詞讀音不同，以本題語詞為準）。
+3. 若查無該字該詞的注音，就換一個查得到的常用語詞寫入第 4 欄，並重寫第 6 欄句子。
+4. 注音在遊戲中由老師每題即時點選才顯示，所以每一題都要填好，不能依賴工具現場處理。
+
+六、教材對應（我會貼上該課教材，你按此取用）
+1. 生字表 → 第 2 欄生字。
+2. 字音字形辨析 → 第 3 欄形近字、第 5 欄形近字語詞。
+3. 生字詞語解釋及例句 → 第 4 欄生字語詞、第 6 欄含生字句子（優先用教材原例句，只把生字挖空）。
+4. 各家書商名稱不一定相同：只要認「生字、形近字、語詞、例句」這四種內容即可。
+
+七、教材缺料時的補足規則（一定要做到）
+1. 沒有例句：依該語詞自造一句（20 字內、符合該年級程度），句尾註記(自造)。
+2. 沒有生字語詞：用該生字組兩個常用詞語，選一個寫入第 4 欄。
+3. 形近字不足 2 個：你另找 1 個該生字的形近字補上。
+4. 自造的句子也要把目標字挖成＿＿，且全句只能有一個＿＿。
+
+八、輸出前檢查
+1. 每列都是 8 欄（數 Tab 有 7 個）。
+2. 第 2 欄是單一漢字；第 4 欄 1～3 個語詞且都含生字；第 6 欄有1～2個＿＿（兩個生字才用2個）；第 7 欄只有一個＿＿；第 8 欄都有注音。
+3. 第 6 欄＿＿以外沒有生字完整字形（否則就是挖錯位置）。
+4. 一次只做一課，不要混入別課生字。
+
+九、範例（直接照這個樣子輸出）
+課別	生字	形近字(用|分隔)	生字語詞(3個，用|分隔)	形近字語詞	含生字句子(用＿＿留空)	含形近字句子(用＿＿留空)	生字注音(必填)
+第一課跑道	軸	抽|油|柚	壓軸|軸心|輪軸	抽獎|石油|柚子	今晚的壓＿＿表演即將隆重登場，請大家拭目以待。	他參加＿＿獎活動，希望能幸運中獎。(自造)	ㄓㄡˋ
+第一課跑道	偏	篇|遍|扁	偏心|偏遠|偏鄉	詩篇|遍地|扁平	李經理向來公正，對每位員工都一視同仁，絲毫沒有＿＿心。	圖書館收藏許多詩＿＿，值得細讀。(自造)	ㄆㄧㄢ
+
+請先確認理解規則，再等我貼教材。`;
+
+function cleanParts(arr){ return (arr||[]).filter(c=>c && c.trim() && !/^[A-Za-z\[\]]$/.test(c) && c.length===1); }
+function uniq(a){ return [...new Set(a)]; }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+// 答案防洩漏：目標字＋形近字一律顯示為○
+function maskText(s,chars){ let r=s; chars.forEach(c=>{ if(c) r=r.split(c).join("○"); }); return r; }
+
+// ---- 開機自動載入 GitHub 完整部件庫 ----
+fetch("https://raw.githubusercontent.com/andice0107/hanzi-component-detective/main/hanzi_db.json")
+.then(r=>{ if(!r.ok) throw new Error("http "+r.status); return r.json(); })
+.then(raw=>{
+  let n=0;
+  for(const k in raw){ const c=cleanParts(raw[k]); if(c.length){ HANZI_DB[k]=c; n++; } }
+  DB_READY=true;
+  document.getElementById('dbInfo').textContent="✅ 部件庫已自動載入："+n+"字（GitHub線上版，免手動上傳）｜離線時可拖入hanzi_db.json";
+})
+.catch(e=>{
+  document.getElementById('dbInfo').textContent="⚠️ 線上部件庫載入失敗（離線或被擋）：先用內建精簡庫，請拖入hanzi_db.json。";
+});
+
+// ---- 拖拉上傳 ----
+function setupDrop(zoneId,inputId,ext,handler){
+  const z=document.getElementById(zoneId), inp=document.getElementById(inputId);
+  z.addEventListener('click',e=>{ if(e.target!==inp) inp.click(); });
+  inp.addEventListener('change',()=>{ if(inp.files[0]) handler(inp.files[0]); inp.value=""; });
+  z.addEventListener('dragover',e=>{ e.preventDefault(); z.classList.add('over'); });
+  z.addEventListener('dragleave',()=>z.classList.remove('over'));
+  z.addEventListener('drop',e=>{
+    e.preventDefault(); z.classList.remove('over');
+    const f=[...(e.dataTransfer.files||[])].find(f=>f.name.toLowerCase().endsWith(ext));
+    if(f) handler(f); else alert("請拖入 "+ext+" 檔案");
+  });
+}
+setupDrop('dropTpl','fileTpl','.txt',parseTemplateFile);
+setupDrop('dropDb','fileDb','.json',parseDbFile);
+
+// ---- 設定頁 → 遊戲頁 ----
+// 不重複輪播：開始時洗牌，全做完前不重複；上下題回顧
+// 留空位置驗證：實際出題句（第6欄，有則用；無則用第7欄）只能有1～2個＿＿，
+// 且＿＿以外不可再出現生字（否則就是挖錯位置）；兩個空都必須是生字的位置
+function validQuestion(q){
+  if(!q||!q.target||q.target.length!==1) return false;
+  const s=(q.sentence||"");
+  const c=s.split("＿＿").length-1;
+  if(c!==1&&c!==2) return false;
+  if(s.split("＿＿").join("").indexOf(q.target)>=0) return false;
+  return true;
+}
+// 設定頁檢查題庫（老師看得到完整題目，學生看不到，無洩漏問題）
+function checkBank(){
+  const el=document.getElementById('bankCheck');
+  const bank=window.customBank;
+  if(!bank||!bank.length){ el.innerHTML="尚未上傳題庫。內建demo "+DEMO_Q.length+" 題可直接玩。"; return; }
+  let ok=0; const rows=[], notes=[];
+  bank.forEach((q,i)=>{
+    const errs=[], no=i+1, t=q.target;
+    if(!t||t.length!==1) errs.push("生字不是單一漢字");
+    const tw=(Array.isArray(q.tWords)?q.tWords:[q.tWords]).filter(Boolean);
+    if(!tw.length) errs.push("第4欄沒有語詞");
+    if(tw.length>3) errs.push("語詞超過3個");
+    tw.forEach(w=>{ if(t&&w.indexOf(t)<0) errs.push("語詞「"+w+"」不含生字"); });
+    const r6=q.raw6||"", r7=q.raw7||"";
+    const c6=r6.split("＿＿").length-1, c7=r7.split("＿＿").length-1;
+    if(c6!==1&&c6!==2) errs.push("含生字句＿＿有"+c6+"個（須1～2個）");
+    if(c7!==1) errs.push("含形近字句＿＿有"+c7+"個（須1個）");
+    if((c6===1||c6===2)&&t){
+      if(r6.split("＿＿").join("").indexOf(t)>=0) errs.push("句中還有「"+t+"」，留空挖錯字（應挖在「"+t+"」的位置）");
+    }
+    if(!q.zhuyin) errs.push("缺注音");
+    if(!(q.sim||[]).length) errs.push("沒有形近字");
+    if(!errs.length){ ok++; if(c6===2) notes.push("第"+no+"題「"+t+"」是雙空格題，兩空都會出"); }
+    else rows.push("第"+no+"題「"+(t||"?")+"」："+errs.join("；"));
+  });
+  el.innerHTML="檢查結果：共"+bank.length+"題，"+ok+"題通過，"+(bank.length-ok)+"題有問題（遊戲會自動跳過有問題的題目）。"+(notes.length?("<br>註："+notes.join("；")+"。"):"")+(rows.length?("<br>"+rows.map(r=>"• "+r).join("<br>")):"<br>全部通過✅");
+}
+function buildOrder(){
+  const bank = window.customBank && window.customBank.length ? window.customBank : DEMO_Q;
+  let noDb=0, bad=0;
+  playOrder=shuffle(bank.filter(q=>{
+    if(!cleanParts(HANZI_DB[q.target]||[]).length){ noDb++; return false; }
+    if(!validQuestion(q)){ bad++; return false; }
+    return true;
+  }));
+  playIdx=-1;
+  return {total:bank.length, skipped:bad, noDb:noDb};
+}
+function startGame(){
+  document.getElementById('setupView').classList.add('hidden');
+  document.getElementById('gameView').classList.remove('hidden');
+  window.scrollTo(0,0);
+  const r=buildOrder();
+  if(!playOrder.length){
+    alert("沒有可出的題目（目標字不在部件庫或題庫有誤）。請回設定頁拖入 hanzi_db.json 或按檢查題庫。");
+    backToSetup(); return;
+  }
+  const skip=r.skipped+r.noDb;
+  if(skip>0){
+    alert("題庫共"+r.total+"題，其中"+skip+"題暫時跳過（"+(r.noDb?("目標字不在部件庫"+r.noDb+"題"):"")+((r.noDb&&r.skipped)?"、":"")+((r.skipped)?("留空或格式有誤"+r.skipped+"題"):"")+"），可按「檢查題庫」看明細。先玩剩下的"+playOrder.length+"題。");
+  }
+  nextQuestion();
+}
+function replayGame(){
+  document.getElementById('doneOverlay').classList.remove('show');
+  buildOrder();
+  nextQuestion();
+}
+function nextQuestion(){
+  if(playIdx+1>=playOrder.length){
+    document.getElementById('doneInfo').textContent="共"+playOrder.length+"題，全數完成！";
+    document.getElementById('doneOverlay').classList.add('show');
+    return true;
+  }
+  playIdx++;
+  return renderQuestion();
+}
+function prevQuestion(){
+  if(playIdx<=0){ document.getElementById('msg').textContent="已經是第一題。"; return; }
+  playIdx--;
+  renderQuestion();
+}
+function backToSetup(){
+  clearInterval(timerId); clearInterval(moveId); paused=false;
+  setBlur(false);
+  document.getElementById('gameView').classList.remove('blurred');
+  document.getElementById('pauseOverlay').classList.remove('show');
+  document.getElementById('doneOverlay').classList.remove('show');
+  document.getElementById('ansOverlay').classList.remove('show');
+  document.getElementById('gameView').classList.add('hidden');
+  document.getElementById('setupView').classList.remove('hidden');
+  window.scrollTo(0,0);
+}
+function renderQuestion(){
+  clearInterval(timerId); clearInterval(moveId); paused=false; setBlur(false);
+  document.getElementById('gameView').classList.remove('blurred');
+  document.getElementById('ansOverlay').classList.remove('show');
+  document.getElementById('pauseOverlay').classList.remove('show');
+  document.getElementById('doneOverlay').classList.remove('show');
+  cur=playOrder[playIdx];
+  if(!cur) return false;
+  document.getElementById('progress').textContent="第"+(playIdx+1)+"題／共"+playOrder.length+"題";
+  hideChars=[cur.target].concat(cur.sim||[]);
+  document.getElementById('lessonBadge').textContent=cur.lesson||"部件猜題";
+  document.getElementById('qtype').textContent="部件猜題｜部件池裡有目標字和形近字的部件";
+  const PH="";
+  let tmp=(cur.sentence||"").replace(/＿＿/g,PH);
+  tmp=maskText(tmp,hideChars);
+  document.getElementById('qsentence').innerHTML=tmp.split(PH).join('<span class="blank">　</span>');
+  // 語詞提示：只顯示目標語詞（最多3個），形近字語詞不顯示
+  const tArr=(Array.isArray(cur.tWords)?cur.tWords:[cur.tWords]).filter(Boolean);
+  document.getElementById('qwords').textContent="語詞提示："+tArr.map(w=>maskText(w,hideChars)).join("／");
+  const zy=document.getElementById('zhuyin');
+  zy.classList.add('hidden');
+  document.getElementById('btnZy').textContent="🔊 注音提示";
+  buildPool();
+  document.getElementById('msg').textContent="";
+  if(document.getElementById('timeOn').checked) startTimer();
+  else document.getElementById('timer').textContent="不計時";
+  startMoveIfNeeded();
+  return true;
+}
+function poolSize(){
+  const v=parseInt(document.getElementById('selCount').value,10);
+  return Math.min(20,Math.max(3,isNaN(v)?6:v));
+}
+function buildPool(){
+  const n = poolSize();
+  const correct = cleanParts(HANZI_DB[cur.target]||[]);
+  let simParts=[];
+  (cur.sim||[]).forEach(s=>{ simParts = simParts.concat(cleanParts(HANZI_DB[s]||[])); });
+  simParts = uniq(simParts.filter(c=>!correct.includes(c)));
+  let pool = uniq(correct.concat(simParts));
+  let guard=0;
+  while(pool.length<n && guard++<500){
+    const c = FILL[Math.floor(Math.random()*FILL.length)];
+    if(!pool.includes(c)) pool.push(c);
+  }
+  pool = shuffle(pool.slice(0,n));
+  const colorMode = document.getElementById('selColor').value;
+  const poolEl = document.getElementById('pool');
+  poolEl.innerHTML="";
+  pool.forEach((c,i)=>{
+    const d=document.createElement('div');
+    d.className="tile"+(colorMode==="single"?" single":"");
+    d.textContent=c;
+    d.dataset.correct = correct.includes(c)?"1":"0";
+    d.dataset.char=c;
+    if(colorMode==="multi") d.style.background=MACARON[i%MACARON.length];
+    d.onclick=()=>onTileClick(d);
+    poolEl.appendChild(d);
+  });
+  document.getElementById('poolInfo').textContent=`共${pool.length}個｜點部件可提示`;
+}
+// 一鍵打亂：只重排剩下（未刪除）的部件；刪掉的不回來，圈的不消失
+function shufflePool(){
+  if(!cur) return;
+  const pool=document.getElementById('pool');
+  const alive=[...pool.children].filter(t=>!t.classList.contains('removed'));
+  shuffle(alive).forEach(t=>pool.appendChild(t));
+  document.getElementById('msg').textContent="已打亂剩下 "+alive.length+" 個部件。";
+}
+// ---- 點選／提示 ----
+function visibleCorrect(){ return [...document.querySelectorAll('.tile')].filter(t=>!t.classList.contains('removed')&&t.dataset.correct==="1"); }
+function canHint(){
+  if(!cur){ document.getElementById('msg').textContent="請先出題。"; return false; }
+  if(visibleCorrect().length<=1){ document.getElementById('msg').textContent="⛔ 無法再提供提示（正確部件只剩一個）。"; return false; }
+  return true;
+}
+function armTeacherCircle(){ if(!canHint())return; armMode="circle"; document.getElementById('msg').textContent="⭕ 老師點選一個「正確的」部件來圈出。"; }
+function armTeacherDelete(){ if(!canHint())return; armMode="delete"; document.getElementById('msg').textContent="❌ 老師點選一個「不對的」部件來刪除。"; }
+function onTileClick(t){
+  if(t.classList.contains('removed'))return;
+  if(armMode==="circle"){
+    if(t.dataset.correct!=="1"){ document.getElementById('msg').textContent="那不是正確部件，請重選一個對的。"; return; }
+    t.classList.add('circled'); armMode=null;
+    document.getElementById('msg').textContent="已圈出一個正確部件。";
+  }else if(armMode==="delete"){
+    if(t.dataset.correct==="1"){ document.getElementById('msg').textContent="那是正確部件，不能刪除，請選錯的。"; return; }
+    t.classList.add('removed'); armMode=null;
+    document.getElementById('msg').textContent="已刪除一個不對的部件。";
+  }
+}
+function autoCircle(){
+  if(!canHint())return;
+  const cands = visibleCorrect().filter(t=>!t.classList.contains('circled')&&!t.classList.contains('auto-circled'));
+  if(cands.length<=1 && visibleCorrect().length<=2){ document.getElementById('msg').textContent="⛔ 無法再提供提示（再圈就只剩一個答案了）。"; return; }
+  if(!cands.length){ document.getElementById('msg').textContent="正確部件都已圈出。"; return; }
+  cands[Math.floor(Math.random()*cands.length)].classList.add('auto-circled');
+  document.getElementById('msg').textContent="✨ 工具已圈出一個正確部件。";
+}
+function autoDelete(){
+  if(!canHint())return;
+  const wrong=[...document.querySelectorAll('.tile')].filter(t=>!t.classList.contains('removed')&&t.dataset.correct!=="1");
+  if(!wrong.length){ document.getElementById('msg').textContent="已經沒有可刪除的錯誤部件。"; return; }
+  wrong[Math.floor(Math.random()*wrong.length)].classList.add('removed');
+  document.getElementById('msg').textContent="🧹 工具已刪除一個不對的部件。";
+}
+// ---- 計時／暫停（暫停即霧化＋停計時＋停挪動）／霧化 ----
+function startTimer(){
+  clearInterval(timerId);
+  timeLeft=parseInt(document.getElementById('timeSec').value,10)||30;
+  const el=document.getElementById('timer');
+  el.textContent=timeLeft+"s";
+  timerId=setInterval(()=>{
+    timeLeft--;
+    el.textContent=timeLeft+"s";
+    if(timeLeft<=0){ clearInterval(timerId); el.textContent="到"; setBlur(true); }
+  },1000);
+}
+function pauseGame(){
+  if(paused||!cur) return;
+  paused=true;
+  clearInterval(timerId); clearInterval(moveId);
+  document.getElementById('gameView').classList.add('blurred');
+  document.getElementById('pauseOverlay').classList.add('show');
+}
+function resumeGame(){
+  if(!paused) return;
+  paused=false;
+  document.getElementById('gameView').classList.remove('blurred');
+  document.getElementById('pauseOverlay').classList.remove('show');
+  if(document.getElementById('timeOn').checked && timeLeft>0){
+    const el=document.getElementById('timer');
+    timerId=setInterval(()=>{
+      timeLeft--;
+      el.textContent=timeLeft+"s";
+      if(timeLeft<=0){ clearInterval(timerId); el.textContent="到"; setBlur(true); }
+    },1000);
+  }
+  startMoveIfNeeded();
+}
+function setBlur(on){
+  document.getElementById('gameView').classList.toggle('blurred',on);
+  document.getElementById('blurOverlay').classList.toggle('show',on);
+}
+function showAnswer(){
+  if(!cur) return;
+  const parts=(HANZI_DB[cur.target]||[]).join("＋");
+  document.getElementById('ansHanzi').textContent=cur.target;
+  document.getElementById('ansDetail').innerHTML=
+    `部件：${parts}｜形近字：${(cur.sim||[]).join("、")}`+
+    (cur.zhuyin?(`｜注音：${cur.zhuyin}`):"")+
+    `<br>句子：${(cur.sentence||"").split("＿＿").join(cur.target)}`+
+    `<br>語詞：${(Array.isArray(cur.tWords)?cur.tWords.join("／"):(cur.tWords||"—"))}${cur.sWords?("（形近："+cur.sWords+"）"):""}`;
+  document.getElementById('ansOverlay').classList.add('show');
+}
+// 每題即時注音：平時隱藏，學生卡住老師才點開；再按隱藏
+function toggleZhuyin(){
+  if(!cur) return;
+  const zy=document.getElementById('zhuyin'), btn=document.getElementById('btnZy');
+  if(zy.classList.contains('hidden')){
+    zy.classList.remove('hidden');
+    zy.textContent=cur.zhuyin?("注音提示："+cur.zhuyin):"本題題庫未附注音";
+    btn.textContent="🔇 隱藏注音";
+  }else{
+    zy.classList.add('hidden');
+    btn.textContent="🔊 注音提示";
+  }
+}
+// ---- 移動 ----
+function startMoveIfNeeded(){
+  clearInterval(moveId);
+  if(paused||!cur) return;
+  const mode=document.querySelector('input[name=move]:checked').value;
+  if(mode!=="shuffle")return;
+  const sec=parseInt(document.getElementById('moveSec').value,10)||2;
+  moveId=setInterval(()=>{
+    const pool=document.getElementById('pool');
+    shuffle([...pool.children]).forEach(t=>pool.appendChild(t));
+  },sec*1000);
+}
+// ---- 範本v10（8欄＋雙空格規則，※開頭行上傳時自動忽略）----
+function templateText(){
+  return [
+  "課別\t生字\t形近字(用|分隔)\t生字語詞(3個，用|分隔)\t形近字語詞\t含生字句子(用＿＿留空)\t含形近字句子(用＿＿留空)\t生字注音(必填)",
+  "第一課跑道\t軸\t抽|油|柚\t壓軸|軸心|輪軸\t抽獎|石油|柚子\t今晚的壓＿＿表演即將隆重登場，請大家拭目以待。\t他參加＿＿獎活動，希望能幸運中獎。(自造)\tㄓㄡˋ",
+  "第一課跑道\t偏\t篇|遍|扁\t偏心|偏遠|偏鄉\t詩篇|遍地|扁平\t李經理向來公正，對每位員工都一視同仁，絲毫沒有＿＿心。\t圖書館收藏許多詩＿＿，值得細讀。(自造)\tㄆㄧㄢ",
+  "※【這份範本同時是給AI的提示詞，說明如下】",
+  "※一列一題，欄位用Tab分隔共8欄，上面2列是第一課跑道真實範例，可刪掉換成自己的題目。",
+  "※第1欄課別：第幾課＋課名。第2欄生字：只填一字（學生要猜的字）。",
+  "※第3欄形近字：用|分隔2個以上，來自字音字形辨析。第4欄生字語詞：含生字的日常語詞，用|分隔寫3個（句子用的放第一個），2～6字、2～3字優先，每個都要能在教育部辭典查到，查不到就寫查到的幾個，絕不捏造。",
+  "※第5欄形近字語詞：形近字組成的語詞（只在公布答案後給老師講解用，遊戲中不顯示）。",
+  "※第6欄含生字句子：＿＿必須挖在生字的位置（1～2個，句中有兩個生字就兩個都挖，如他＿＿事認真，＿＿人誠懇）；＿＿以外不可再出現生字完整字形；同課其他生字可完整保留。",
+  "※第7欄含形近字句子：形近字位置挖成＿＿，教材無例句則自造並註記(自造)。第8欄生字注音：必填，須查教育部辭典；遊戲中老師每題即時點選才顯示。",
+  "※【不干擾原則】：遊戲畫面只出現目標語詞（遮罩後，如○事／○軸心），形近字語詞、目標字、形近字完整字形一律不出現；線索只放在部件池裡。",
+  "※【請AI生成題庫時這樣提供教材】：把該課生字表＋字音字形＋生字語詞例句貼給AI，並註明版本年級學期課別；各家書商名稱不同沒關係，有生字、形近字、語詞、例句四種內容即可。",
+  "※【注音查證最重要】：AI必須上教育部國語辭典簡編本、國語小字典等官方辭典網站，查該生字在該語詞中的實際讀音再填第8欄，不可留空、不可編造；查無就換一個查得到的常用語詞並重寫句子。",
+  "※【教材缺料時AI補足規則】：缺例句→依語詞自造一句（20字內、符合年級）並註記(自造)；缺語詞→用該字組兩個常用詞選一個；形近字不足2個→AI另找1個形近字補上；自造句也只能有一個＿＿。",
+  "※【AI輸出檢查】：每列8欄（7個Tab）、第2欄是單一漢字、第4欄1～3個語詞且都含生字、第6欄1～2個＿＿且＿＿外無生字、第7欄只有一個＿＿、第8欄都有注音、一次只做一課。",
+  "※※開頭的行上傳或拖入時會自動忽略，可安心保留。完整版提示詞請按設定頁「一鍵複製AI提示詞」。"
+  ].join("\n")+"\n";
+}
+function downloadTemplate(){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([templateText()],{type:"text/plain;charset=utf-8"}));
+  a.download="部件猜字-題庫範本v10.txt"; a.click();
+}
+function parseTemplateFile(f){
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      // 正規化：AI 常誤用半形 __，一律轉為全形＿＿
+      const text=r.result.replace(/__/g,"＿＿");
+      const lines=text.split(/\r?\n/).filter(l=>l.trim()&&!/^(課別|※|#)/.test(l));
+      window.customBank=lines.map(l=>{
+        const p=l.split("\t");
+        return {lesson:p[0]||"",target:(p[1]||"").trim(),sim:(p[2]||"").split("|").map(s=>s.trim()).filter(Boolean),
+          tWords:(p[3]||"").split("|").map(s=>s.trim()).filter(Boolean).slice(0,3),sWords:(p[4]||"").trim(),sentence:p[5]||p[6]||"",raw6:(p[5]||""),raw7:(p[6]||""),zhuyin:(p[7]||"").trim(),type:"自訂題庫"};
+      }).filter(q=>q.target);
+      document.getElementById('bankInfo').textContent="題庫：已載入 "+window.customBank.length+" 題（"+f.name+"）｜按開始遊戲出題";
+      alert("已載入自訂題庫 "+window.customBank.length+" 題。");
+    }catch(e){ alert("題庫解析失敗，請用下載的範本格式。"); }
+  };
+  r.readAsText(f,"utf-8");
+}
+function uploadTemplate(input){ if(input.files[0]) parseTemplateFile(input.files[0]); }
+function parseDbFile(f){
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const raw=JSON.parse(r.result);
+      let count=0;
+      for(const k in raw){ const c=cleanParts(raw[k]); if(c.length){ HANZI_DB[k]=c; count++; } }
+      DB_READY=true;
+      document.getElementById('dbInfo').textContent="已手動載入部件庫："+count+"字（"+f.name+"）。";
+      alert("部件庫載入完成："+count+"字");
+    }catch(e){ alert("JSON 解析失敗，請拖入 hanzi_db.json 本體。"); }
+  };
+  r.readAsText(f,"utf-8");
+}
+function uploadDb(input){ if(input.files[0]) parseDbFile(input.files[0]); }
+// ---- AI 提示詞一鍵複製／下載 ----
+function copyPrompt(){
+  const done=()=>{document.getElementById('promptMsg').textContent="✅ 已複製！貼給任何AI並附上該課教材即可生成題庫。";};
+  const fail=()=>{document.getElementById('promptMsg').textContent="複製失敗，請改用「下載AI提示詞」。";};
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(AI_PROMPT).then(done,fail);
+  }else{
+    const t=document.createElement('textarea');t.value=AI_PROMPT;document.body.appendChild(t);t.select();
+    try{document.execCommand('copy');done();}catch(e){fail();}
+    document.body.removeChild(t);
+  }
+}
+function downloadPrompt(){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([AI_PROMPT],{type:"text/plain;charset=utf-8"}));
+  a.download="AI生成題庫-提示詞-v9.txt"; a.click();
+}
+</script>
+</body>
+</html>
